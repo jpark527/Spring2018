@@ -1,7 +1,7 @@
 package P2;
 
 /**  
- * @author Jae Hyun Park  
+ * @author JPark
  * 
  * I have tested this program and it has no issues.
  * 
