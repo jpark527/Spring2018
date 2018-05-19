@@ -21,7 +21,7 @@ int main() {
         tester(dArr, "Double");
         tester(cArr, "Character");
         tester(cpArr, "Character Pointer");
-        tester(sArr, "String");
+        tester(sArr, "String"); // malloc.. y?
 
         twoDArrayTester(iArr, "Integer");
         twoDArrayTester(dArr, "Double");
