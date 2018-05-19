@@ -1,5 +1,5 @@
 package P3;
-/**  @author Jae Hyun Park
+/**  @author JPark
  * 
  *   I have tested this program and it has no issues.
  *   My extra feature is a menu bar which contains two menus 'File' and 'View'.
