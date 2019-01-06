@@ -1,0 +1,360 @@
+package ui;
+/**  @author Jae Hyun Park
+ * 
+ *   I have tested this program and it has no issues.
+ *   My extra feature is a menu bar which contains two menus 'File' and 'View'.
+ *   'File' menu has two menu items, 'Open...', and 'Exit'. With 'Open...', user
+ *   can find and open any .jpg/.JPG file, and can also go back and forth, and 
+ *   autoplay to display other .jpg/.JPG files within the same folder. If a user 
+ *   tries to open a file that is NOT .jpg/.JPG, the image section shows no 
+ *   image at all. 'View' menu has two menu items as well which are 'Zoom In' 
+ *   and 'Zoom out'.   
+ */
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.IOException;
+import java.util.LinkedList;
+
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.Timer;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
+@SuppressWarnings("serial")
+public class Project3 extends JPanel {
+
+	private JLabel picture;
+	private JButton previous, next;
+	private JCheckBox autoplay;
+	private JSlider seconds;
+	private LinkedList<File> files;
+	private int fileIndex, zoom;
+	private ActionListener nextListener, prevListener;
+	private JMenuItem open, exit, zoomIn, zoomOut;
+
+	/**
+	 * Construct new panel or content of 'Pic Viewer'.
+	 */
+	public Project3() {
+		create();
+		wire();
+	}
+	
+	/**
+	 * Create all the components that goes in the 'Pic Viewer' panel.
+	 */
+	private void create() {
+		setLayout(new BorderLayout());
+		createPictureArea();
+		createNextAndPrevious();
+		createAutoplay();
+		createMenu();
+	}
+
+	/**
+	 * Wire all the components that is used in the 'Pic Viewer' panel.
+	 */	
+	private void wire() {
+		wireNextAndPrevious();
+		wireAutoplay();
+		wireFileMenu();
+		wireViewMenu();
+	}
+	
+	/**
+	 * Display a given image.
+	 * 
+	 * @param imgFile  
+	 * 		      an image file to display
+	 * @param width 
+	 *            width of the image to display
+	 * @param height
+	 *            height of the image to display
+	 */
+	private void setLabelImage(File imgFile, int width, int height) {
+		Image img;
+		try {
+			img = ImageIO.read(imgFile);
+			picture.setIcon(new ImageIcon(img.getScaledInstance(width, height, 
+				Image.SCALE_DEFAULT)));
+		} catch (IOException e) {	            
+			e.printStackTrace();                    
+			picture.setIcon(null);
+		}
+	}
+
+	/**
+	 * Saves all the .jpg/.JPG files in the given directory.
+	 * 
+	 * @param path
+	 *            full path of a directory given
+	 */
+	private void setImageFiles(String path) {
+		File folder = new File(path);
+		String[] allFiles = folder.list();  
+		files.clear();       
+		if(allFiles != null)
+			for (String file : allFiles)
+				if (file.endsWith(".jpg") || file.endsWith(".JPG") || file.endsWith(".png") || file.endsWith(".jpeg"))
+					files.add(new File(path + '/' + file));   
+	}
+
+	/**
+	 *  Make sure the index of files array count does NOT become negative, and 
+	 *  maintain the correct index while staying within the bound.
+	 */
+	private void setLinearIndex() {
+		while(fileIndex < 0)
+			fileIndex += files.size();
+		fileIndex %=files.size();
+	}
+	
+	/**
+	 * Check if a given file path matches any of the file path in the file array.
+	 * 
+	 * @param fileName
+	 *            full path of a file given to be checked
+	 * @return the index in which the given file is at within the file array, 
+	 * if the given file exists in the array, and Integer.MIN_VALUE otherwise.
+	 */
+	private int matchSelectedFile(String fileName) {
+		File file = new File(fileName);
+		for(int i=0; i<files.size(); ++i)
+			if(files.get(i).equals(file))
+				return i;
+		return Integer.MIN_VALUE;
+	}
+	
+	/**
+	 * Wire the contents in the 'File' menu in the menu bar that goes on top 
+	 * of the panel.
+	 */
+	private void wireFileMenu() {
+		open.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				JFileChooser chooser = new JFileChooser();
+				int result = chooser.showOpenDialog(null);
+				if (result == JFileChooser.APPROVE_OPTION) {
+		            File file = chooser.getSelectedFile();
+		            setImageFiles(file.getParentFile().getAbsolutePath());          
+		            fileIndex = matchSelectedFile(file.getAbsolutePath());    
+		            if(fileIndex==Integer.MIN_VALUE)
+		            		picture.setIcon(null);
+		            else
+		            		setLabelImage(files.get(fileIndex), 
+		            			FRAME_WIDTH - 2 * BUTTON_WIDTH, 
+		            			FRAME_HEIGHT - BUTTON_WIDTH); 
+		        }
+			}
+		});
+		exit.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				System.exit(0);
+			}		
+		});
+	}
+	
+	/**
+	 * Wire the contents in the 'View' menu in the menu bar that goes on top 
+	 * of the panel.
+	 */
+	private void wireViewMenu() {
+		class ZoomListener implements ActionListener {
+			private boolean zoomed;
+
+			public ZoomListener(boolean zoomed) {
+				this.zoomed = zoomed;
+			}
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(fileIndex!=Integer.MIN_VALUE) {
+					if(zoomed)
+						zoom += 50;
+					else
+						zoom -= 50;
+					int newWidth = FRAME_WIDTH - 2 * BUTTON_WIDTH + zoom,
+						newHeight = FRAME_HEIGHT - BUTTON_WIDTH + zoom;
+					setLinearIndex();
+					setLabelImage(files.get(fileIndex), 
+						newWidth, newHeight);
+				}
+			}
+		};
+		zoomIn.addActionListener(new ZoomListener(true));
+		zoomOut.addActionListener(new ZoomListener(false));
+	}
+	
+	/**
+	 * Wire the autoplay content that is located on the bottom of the panel.
+	 */
+	private void wireAutoplay() {
+		Timer slideShow = new Timer(1000 * seconds.getValue(), nextListener);
+		seconds.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				slideShow.setDelay(1000 * seconds.getValue());
+			}
+		});
+		autoplay.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (autoplay.isSelected())
+					slideShow.start();
+				else
+					slideShow.stop();
+			}
+		});
+	}
+	
+	/**
+	 * Wire the next, and previous buttons that go on the sides of the panel.
+	 */
+	private void wireNextAndPrevious() {
+		class ButtonListener implements ActionListener {		
+			private boolean next;
+			
+			public ButtonListener(boolean next) {
+				this.next = next;
+			}
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if(fileIndex==Integer.MIN_VALUE)
+					picture.setIcon(null);
+				else {
+					if (next)
+						++fileIndex;
+					else
+						--fileIndex;
+					setLinearIndex();
+					setLabelImage(files.get(fileIndex), 
+						FRAME_WIDTH - 2 * BUTTON_WIDTH, FRAME_HEIGHT - BUTTON_WIDTH);
+				}
+				zoom = 0;
+			}
+		}
+		nextListener = new ButtonListener(true);
+		prevListener = new ButtonListener(false);
+		next.addActionListener(nextListener);
+		previous.addActionListener(prevListener);
+	}
+
+	/**
+	 * Create and add all the contents in the menu bar that goes on top of the 
+	 * panel.
+	 */
+	private void createMenu() {
+		JMenuBar menuBar = new JMenuBar();
+		JMenu fileMenu = new JMenu("File");
+		JMenu viewMenu = new JMenu("View");
+		open = new JMenuItem("Open...");
+		exit = new JMenuItem("Exit");
+		zoomIn = new JMenuItem("Zoom In");
+		zoomOut = new JMenuItem("Zoom Out");
+		fileMenu.add(open);
+		fileMenu.add(exit);
+		viewMenu.add(zoomIn);
+		viewMenu.add(zoomOut);
+		menuBar.add(fileMenu);
+		menuBar.add(viewMenu);
+		add(menuBar, BorderLayout.NORTH);
+	}
+
+	/**
+	 * Create and add all the contents of autoplay which go in the bottom of 
+	 * the panel.
+	 */
+	private void createAutoplay() {
+		autoplay = new JCheckBox("Autoplay");
+		seconds = new JSlider(0, 10, 0);
+		seconds.setMajorTickSpacing(5);
+		seconds.setMinorTickSpacing(1);
+		seconds.setPaintTicks(true);
+		seconds.setPaintLabels(true);
+		JPanel bottom = new JPanel();
+		JLabel sec = new JLabel("sec");
+		bottom.setLayout(new GridBagLayout());
+		bottom.setBackground(Color.WHITE);
+		bottom.add(autoplay);
+		bottom.add(seconds);
+		bottom.add(sec);
+		bottom.setPreferredSize(new Dimension(FRAME_WIDTH, BUTTON_WIDTH));
+		add(picture, BorderLayout.CENTER);
+		add(bottom, BorderLayout.SOUTH);
+	}
+
+	/**
+	 * Create and add the two buttons, previous, and next which go on the sides
+	 * of the panel.
+	 */
+	private void createNextAndPrevious() {
+		previous = new JButton("<--");
+		next = new JButton("-->");
+		JPanel nextPanel = new JPanel(new GridLayout(1, 1));
+		nextPanel.add(previous);
+		nextPanel.setPreferredSize(new Dimension(BUTTON_WIDTH, 
+				FRAME_HEIGHT - BUTTON_WIDTH));
+		JPanel prevPanel = new JPanel(new GridLayout(1, 1));
+		prevPanel.add(next);
+		prevPanel.setPreferredSize(new Dimension(BUTTON_WIDTH, 
+				FRAME_HEIGHT - BUTTON_WIDTH));
+		add(nextPanel, BorderLayout.WEST);
+		add(prevPanel, BorderLayout.EAST);
+	}
+
+	/**
+	 * Create and add the picture area in the center, and display an image in 
+	 * the 'My Picture' folder. If the path is invalid, or the 'My Picture' 
+	 * folder does NOT have any .jpg/.JPG files, display no image at all.
+	 */
+	private void createPictureArea() {
+		zoom = fileIndex = 0;
+		files = new LinkedList<>();
+		picture = new JLabel();
+		if(files.isEmpty()) {
+			picture.setIcon(null);
+			fileIndex = Integer.MIN_VALUE;
+		} else
+			setLabelImage(files.get(fileIndex), FRAME_WIDTH - 2 * BUTTON_WIDTH, 
+				FRAME_HEIGHT - BUTTON_WIDTH);
+	}
+
+	public static final int FRAME_WIDTH = 1200, FRAME_HEIGHT = 800, 
+							BUTTON_WIDTH = 60;
+
+	/**
+	 * Creates a frame for the 'Pic Viewer program', and add the instance of
+	 * panel class that is made for 'Pic Viewer'.
+	 * 
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		JFrame frame = new JFrame("Pic Viewer");
+		JPanel main = new Project3();
+		frame.add(main);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setPreferredSize(new Dimension(FRAME_WIDTH, FRAME_HEIGHT));
+		frame.pack();
+		frame.setVisible(true);
+	}
+}
